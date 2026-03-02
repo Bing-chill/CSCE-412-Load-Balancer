@@ -241,36 +241,39 @@ void loadbalancer::log(int run_number,
     logfile << "Runtime Event\n";
 
     for (int cycle = 0; cycle < num_cycles; cycle++)
-    {
-        int random_value = rand() % 5;
-
-        if (random_value == 0)
         {
-            request r;
+            int new_requests;
 
-            if (!firewall.blocked(r.ip_in))
-            {
-                q.push(r);
-                total_requests++;
-                logfile << "New Request Time=" << r.time
-                        << " | Queue size: " << q.size() << "\n";
-            }
+            if (cycle < num_cycles / 2)
+                new_requests = 8;
             else
+                new_requests = 0;
+
+            for (int i = 0; i < new_requests; i++)
             {
-                rejected_requests++;
-                logfile << "Blocked Request rejected\n";
+                request r;
+
+                if (!firewall.blocked(r.ip_in))
+                {
+                    q.push(r);
+                    total_requests++;
+                    logfile << "New Request | Queue size: " << q.size() << "\n";
+                }
+                else
+                {
+                    rejected_requests++;
+                    logfile << "Blocked Request rejected\n";
+                }
             }
+
+            size_t previous_server_count = servers.size();
+            run_one_cycle();
+
+            if (servers.size() > previous_server_count)
+                logfile << "Scale up Servers now: " << servers.size() << "\n";
+            else if (servers.size() < previous_server_count)
+                logfile << "Scale down Servers now: " << servers.size() << "\n";
         }
-
-        size_t previous_server_count = servers.size();
-        run_one_cycle();
-
-        if (servers.size() > previous_server_count)
-            logfile << "Scale up Servers now: " << servers.size() << "\n";
-        else if (servers.size() < previous_server_count)
-            logfile << "Scale down Servers now: " << servers.size() << "\n";
-    }
-
     count_servers(active, inactive);
 
     logfile << "Log Information \n";
